@@ -27,6 +27,9 @@ void add_polygon( struct matrix *polygons,
                   double x0, double y0, double z0, 
                   double x1, double y1, double z1, 
                   double x2, double y2, double z2 ) {
+  add_edge(polygons, x0, y0, z0, x1, y1, z1);
+  add_edge(polygons, x1, y1, z1, x2, y2, z2);
+  add_edge(polygons, x2, y2, z2, x0, y0, z0);
 }
 
 /*======== void draw_polygons() ==========
@@ -39,6 +42,34 @@ void add_polygon( struct matrix *polygons,
   triangles
   ====================*/
 void draw_polygons( struct matrix *polygons, screen s, color c ) {
+  int lastcol = polygons->lastcol;
+  int i = 0;
+  while (i < lastcol - 3 ){
+    int x0 = (int)polygons->m[0][i];
+    int y0 = (int)polygons->m[1][i];
+    int x1 = (int)polygons->m[0][i+2];
+    int y1 = (int)polygons->m[1][i+2];
+    int x2 = (int)polygons->m[0][i+4];
+    int y2 = (int)polygons->m[1][i+4];
+
+    //Vector A
+    int Ax = x1 - x0;
+    int Ay = y1 - y0;
+
+    //Vector B
+    int Bx = x2 - x0;
+    int By = y2 - y0;
+
+    //Cross Product 
+    int z = Ax * By - Ay * Bx;
+
+    if (z > 0){
+      draw_line(x0, y0, x1, y1, s, c);
+      draw_line(x1, y1, x2, y2, s, c);
+      draw_line(x2, y2, x0, y0, s, c);
+    }
+    i = i + 6;
+  }
 }
 
 
@@ -91,11 +122,11 @@ void add_box( struct matrix * edges,
 
 /*======== void add_sphere() ==========
   Inputs:   struct matrix * points
-            double cx
-	    double cy
-	    double cz
-	    double r
-	    int step  
+  double cx
+  double cy
+  double cz
+  double r
+  int step  
   Returns: 
 
   adds all the points for a sphere with center 
@@ -111,22 +142,62 @@ void add_sphere( struct matrix * edges,
   struct matrix *points = generate_sphere(cx, cy, cz, r, step);
   int index, lat, longt;
   int latStop, longStop, latStart, longStart;
+  int p1, p2, p3;
   latStart = 0;
   latStop = step;
   longStart = 0;
-  longStop = step;
+  longStop = step-1;
 
   step++;
   for ( lat = latStart; lat < latStop; lat++ ) {
     for ( longt = longStart; longt <= longStop; longt++ ) {
 
-      index = lat * (step) + longt;
-      add_edge( edges, points->m[0][index],
-                points->m[1][index],
-                points->m[2][index],
-                points->m[0][index] + 1,
-                points->m[1][index] + 1,
-                points->m[2][index] + 1);
+      index = (lat * (step) + longt);
+      if (lat != latStop - 1) {
+	p1 = index;
+	p2 = index + 1;
+	p3 = index + step + 1;
+
+	add_polygon(edges,
+		    points->m[0][p1],points->m[1][p1],points->m[2][p1],
+		    points->m[0][p2],points->m[1][p2],points->m[2][p2],
+		    points->m[0][p3],points->m[1][p3],points->m[2][p3]);
+
+	if ( (index % step != 0) && ((index % step) != (step - 1)) ){
+	  p1 = index;
+	  p2 = index + step + 1;
+	  p3 = index + step;
+
+
+	  add_polygon(edges,
+		      points->m[0][p1],points->m[1][p1],points->m[2][p1],
+		      points->m[0][p2],points->m[1][p2],points->m[2][p2],
+		      points->m[0][p3],points->m[1][p3],points->m[2][p3]);
+	}
+      }
+      else {
+	p1 = index;
+	p2 = index + 1;
+	p3 = longt + 1;
+
+	add_polygon(edges,
+		    points->m[0][p1],points->m[1][p1],points->m[2][p1],
+		    points->m[0][p2],points->m[1][p2],points->m[2][p2],
+		    points->m[0][p3],points->m[1][p3],points->m[2][p3]);
+
+	if ( (index % step != 0) && ((index % step) != (step - 1)) ){
+
+	  p1 = index;
+	  p2 = longt + 1;
+	  p3 = longt;
+
+	  add_polygon(edges,
+		      points->m[0][p1],points->m[1][p1],points->m[2][p1],
+		      points->m[0][p2],points->m[1][p2],points->m[2][p2],
+		      points->m[0][p3],points->m[1][p3],points->m[2][p3]);
+
+	}
+      }
     }
   }
   free_matrix(points);
@@ -134,14 +205,14 @@ void add_sphere( struct matrix * edges,
 
 /*======== void generate_sphere() ==========
   Inputs:   double cx
-	    double cy
-	    double cz
-	    double r
-	    double step  
+  double cy
+  double cz
+  double r
+  double step  
   Returns: Generates all the points along the surface 
-           of a sphere with center (cx, cy, cz) and
-	   radius r.
-	   Returns a matrix of those points
+  of a sphere with center (cx, cy, cz) and
+  radius r.
+  Returns a matrix of those points
   ====================*/
 struct matrix * generate_sphere(double cx, double cy, double cz,
                                 double r, int step ) {
@@ -179,12 +250,12 @@ struct matrix * generate_sphere(double cx, double cy, double cz,
 
 /*======== void add_torus() ==========
   Inputs:   struct matrix * points
-            double cx
-	    double cy
-	    double cz
-	    double r1
-	    double r2
-	    double step  
+  double cx
+  double cy
+  double cz
+  double r1
+  double r2
+  double step  
   Returns: 
 
   adds all the points required to make a torus
@@ -200,6 +271,7 @@ void add_torus( struct matrix * edges,
   struct matrix *points = generate_torus(cx, cy, cz, r1, r2, step);
   int index, lat, longt;
   int latStop, longStop, latStart, longStart;
+  int p1, p2, p3, p4;
   latStart = 0;
   latStop = step;
   longStart = 0;
@@ -209,12 +281,97 @@ void add_torus( struct matrix * edges,
     for ( longt = longStart; longt < longStop; longt++ ) {
 
       index = lat * step + longt;
-      add_edge( edges, points->m[0][index],
-                points->m[1][index],
-                points->m[2][index],
-                points->m[0][index] + 1,
-                points->m[1][index] + 1,
-                points->m[2][index] + 1);
+
+      if (lat != step - 1) {
+	if (longt != step - 1) {
+
+	  p1 = index;
+	  p2 = index + 1;
+	  p3 = index + step + 1;
+	  p4 = index + step;
+
+	  add_polygon(edges,
+		      points->m[0][p1],points->m[1][p1],points->m[2][p1],
+		      points->m[0][p3],points->m[1][p3],points->m[2][p3],
+		      points->m[0][p2],points->m[1][p2],points->m[2][p2]);
+
+
+	  add_polygon(edges,
+		      points->m[0][p1],points->m[1][p1],points->m[2][p1],
+		      points->m[0][p4],points->m[1][p4],points->m[2][p4],
+		      points->m[0][p3],points->m[1][p3],points->m[2][p3]);
+
+
+	}
+
+	else{
+
+
+	  p1 = index;
+	  p2 = index + 1;
+	  p3 = index + step;
+	  p4 = index - longt;
+
+
+
+	  add_polygon(edges,
+		      points->m[0][p1],points->m[1][p1],points->m[2][p1],
+		      points->m[0][p2],points->m[1][p2],points->m[2][p2],
+		      points->m[0][p4],points->m[1][p4],points->m[2][p4]);
+
+
+	  add_polygon(edges,
+		      points->m[0][p1],points->m[1][p1],points->m[2][p1],
+		      points->m[0][p3],points->m[1][p3],points->m[2][p3],
+		      points->m[0][p2],points->m[1][p2],points->m[2][p2]);
+	}
+      }
+
+      //Last slice
+      else {
+
+	if (longt != step - 1) {
+
+
+	  p1 = index;
+	  p2 = index + 1;
+	  p3 = longt;
+	  p4 = longt + 1;
+
+
+	  add_polygon(edges,
+		      points->m[0][p1],points->m[1][p1],points->m[2][p1],
+		      points->m[0][p4],points->m[1][p4],points->m[2][p4],
+		      points->m[0][p2],points->m[1][p2],points->m[2][p2]);
+
+
+	  add_polygon(edges,
+		      points->m[0][p1],points->m[1][p1],points->m[2][p1],
+		      points->m[0][p3],points->m[1][p3],points->m[2][p3],
+		      points->m[0][p4],points->m[1][p4],points->m[2][p4]);
+
+
+	}
+	else {
+
+	  p1 = index;
+	  p2 = index - longt;
+	  p3 = 0;
+	  p4 = step - 1;
+
+	  add_polygon(edges,
+		      points->m[0][p1],points->m[1][p1],points->m[2][p1],
+		      points->m[0][p3],points->m[1][p3],points->m[2][p3],
+		      points->m[0][p2],points->m[1][p2],points->m[2][p2]);
+
+	  add_polygon(edges,
+		      points->m[0][p1],points->m[1][p1],points->m[2][p1],
+		      points->m[0][p4],points->m[1][p4],points->m[2][p4],
+		      points->m[0][p3],points->m[1][p3],points->m[2][p3]);
+	}
+
+      }
+
     }
   }
   free_matrix(points);
@@ -223,15 +380,15 @@ void add_torus( struct matrix * edges,
 
 /*======== void generate_torus() ==========
   Inputs:   struct matrix * points
-            double cx
-	    double cy
-	    double cz
-	    double r
-	    int step  
+  double cx
+  double cy
+  double cz
+  double r
+  int step  
   Returns: Generates all the points along the surface 
-           of a torus with center (cx, cy, cz) and
-	   radii r1 and r2.
-	   Returns a matrix of those points
+  of a torus with center (cx, cy, cz) and
+  radii r1 and r2.
+  Returns a matrix of those points
   ====================*/
 struct matrix * generate_torus( double cx, double cy, double cz,
                                 double r1, double r2, int step ) {
@@ -268,10 +425,10 @@ struct matrix * generate_torus( double cx, double cy, double cz,
 
 /*======== void add_circle() ==========
   Inputs:   struct matrix * points
-            double cx
-	    double cy
-	    double r
-	    double step  
+  double cx
+  double cy
+  double r
+  double step  
   Returns: 
 
   Adds the circle at (cx, cy) with radius r to edges
@@ -297,23 +454,23 @@ void add_circle( struct matrix * edges,
 
 
 /*======== void add_curve() ==========
-Inputs:   struct matrix *points
-         double x0
-         double y0
-         double x1
-         double y1
-         double x2
-         double y2
-         double x3
-         double y3
-         double step
-         int type  
-Returns: 
+  Inputs:   struct matrix *points
+  double x0
+  double y0
+  double x1
+  double y1
+  double x2
+  double y2
+  double x3
+  double y3
+  double step
+  int type  
+  Returns: 
 
-Adds the curve bounded by the 4 points passsed as parameters
-of type specified in type (see matrix.h for curve type constants)
-to the matrix points
-====================*/
+  Adds the curve bounded by the 4 points passsed as parameters
+  of type specified in type (see matrix.h for curve type constants)
+  to the matrix points
+  ====================*/
 void add_curve( struct matrix *edges, 
                 double x0, double y0, 
                 double x1, double y1, 
